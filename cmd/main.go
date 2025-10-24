@@ -2,6 +2,7 @@ package main
 
 import (
 	"OzonTestTask/internal/config"
+	"OzonTestTask/internal/storage/postgreSQL"
 	"fmt"
 	"github.com/joho/godotenv"
 	"log"
@@ -12,6 +13,14 @@ func main() {
 		log.Printf("Используются переменные окружения")
 	}
 	conf := config.GetConfig()
-	fmt.Printf("Сервер запущен на порту %s. Используется хранилище %s\n", conf.Port, conf.StorageType)
+	fmt.Printf("Выбрано хранилище %s\n", conf.StorageType)
+	if conf.StorageType == config.PostgresStorage {
+		db, err := postgreSQL.NewDBConnection(conf.PostgresDSN)
+		if err != nil {
+			log.Fatalf("не удалось подключиться к БД: %v", err)
+		}
+		fmt.Println("Подключено хранилище postgres")
+		defer db.Close()
 
+	}
 }

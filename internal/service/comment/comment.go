@@ -21,3 +21,7 @@ func (s *CommentService) CreateComment(ctx context.Context, comment *model.Comme
 func (s *CommentService) GetCommentsByPost(ctx context.Context, postID string, limit, offset int) ([]model.Comment, error) {
 	return s.store.GetCommentsByPost(ctx, postID, limit, offset)
 }
+
+func (s *CommentService) GetReplies(ctx context.Context, parentCommentID string) ([]model.Comment, error) {
+	return s.store.GetReplies(ctx, parentCommentID)
+}

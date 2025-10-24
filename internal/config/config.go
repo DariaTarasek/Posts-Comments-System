@@ -48,7 +48,7 @@ func getDSN() string {
 	host := getEnv("POSTGRES_HOST")
 	port := getEnv("POSTGRES_PORT")
 	ssl := os.Getenv("POSTGRES_SSLMODE")
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?ssl=%s", user, password, host, port, db, ssl)
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", user, password, host, port, db, ssl)
 }
 
 func GetConfig() *Config {
