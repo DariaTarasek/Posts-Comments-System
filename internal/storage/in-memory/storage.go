@@ -120,13 +120,15 @@ func (ms *InMemoryStorage) CreateComment(ctx context.Context, comment *model.Com
 }
 
 // GetCommentsByPost Получение корневых комментариев к посту
-func (ms *InMemoryStorage) GetCommentsByPost(ctx context.Context, postID, limit, offset int) ([]model.Comment, error) {
+func (ms *InMemoryStorage) GetCommentsByPost(ctx context.Context, postID, limit, offset int) ([]model.Comment, int, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
 	rootIDs := ms.commentsByPost[postID]
+	totalPages := (len(rootIDs) + limit - 1) / limit
+
 	if offset >= len(rootIDs) {
-		return []model.Comment{}, nil
+		return []model.Comment{}, totalPages, nil
 	}
 
 	lastComment := offset + limit
@@ -139,7 +141,7 @@ func (ms *InMemoryStorage) GetCommentsByPost(ctx context.Context, postID, limit,
 		result = append(result, ms.comments[id])
 	}
 
-	return result, nil
+	return result, totalPages, nil
 }
 
 // GetReplies Получение ветки ответов на комментарий (все уровни вложенности)
