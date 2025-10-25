@@ -24,10 +24,6 @@ func (s *CommentService) GetPostByID(ctx context.Context, id int) (*model.Post, 
 }
 
 func (s *CommentService) CreateComment(ctx context.Context, comment *model.Comment) error {
-	if len(comment.Content) > 2000 {
-		return fmt.Errorf("длина комментария не должна превышать 2000 символов")
-	}
-
 	post, err := s.store.GetPostByID(ctx, comment.PostID)
 	if err != nil {
 		return fmt.Errorf("пост не найден: %v", err)
@@ -35,6 +31,10 @@ func (s *CommentService) CreateComment(ctx context.Context, comment *model.Comme
 
 	if !post.AreCommentsAllowed {
 		return fmt.Errorf("этого пост запрещено комментировать")
+	}
+
+	if len(comment.Content) > 2000 {
+		return fmt.Errorf("длина комментария не должна превышать 2000 символов")
 	}
 
 	err = s.store.CreateComment(ctx, comment)

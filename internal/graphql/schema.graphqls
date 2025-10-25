@@ -1,3 +1,19 @@
+type Comment {
+  id: ID!
+  postId: ID!
+  parentCommentId: ID
+  path: String!
+  author: String!
+  content: String!
+  createdAt: String!
+  replies: [Comment!]!
+}
+
+type PaginatedComments {
+  comments: [Comment!]!
+  totalPages: Int!
+}
+
 type Post {
   id: ID!
   title: String!
@@ -5,28 +21,14 @@ type Post {
   author: String!
   areCommentsAllowed: Boolean!
   createdAt: String!
-  comments(limit: Int, offset: Int): [Comment!]!
-}
-
-type Comment {
-  id: ID!
-  postId: ID!
-  parentId: ID
-  path: String!
-  author: String!
-  content: String!
-  createdAt: String!
-  replies(limit: Int, offset: Int): [Comment!]!
+  comments(limit: Int, offset: Int): PaginatedComments!
 }
 
 type Query {
   posts: [Post!]!
   post(id: ID!): Post
-  comments(postId: ID!, limit: Int!, offset: Int!): [Comment!]!
-  replies(commentId: ID!): [Comment!]!
+  replies(id: ID!): [Comment!]!
 }
-
-
 
 type Mutation {
   createPost(title: String!, content: String!, author: String!, areCommentsAllowed: Boolean!): Post!

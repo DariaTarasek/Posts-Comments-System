@@ -117,11 +117,12 @@ func (s *Storage) CreateComment(ctx context.Context, comment *model.Comment) err
 		rawReq := `
 			UPDATE comments
 			SET path = (SELECT path || text2ltree($1::text) FROM comments WHERE id = $2)
-			WHERE id = $3`
-		_, err = tx.ExecContext(ctx, rawReq, comment.ID, *comment.ParentCommentID, comment.ID)
+			WHERE id = $3
+			RETURNING path`
+		err = tx.QueryRowxContext(ctx, rawReq, comment.ID, *comment.ParentCommentID, comment.ID).Scan(&comment.Path)
 	} else {
-		rawReq := `UPDATE comments SET path = text2ltree($1::text) WHERE id = $2`
-		_, err = tx.ExecContext(ctx, rawReq, comment.ID, comment.ID)
+		rawReq := `UPDATE comments SET path = text2ltree($1::text) WHERE id = $2 RETURNING path`
+		err = tx.QueryRowxContext(ctx, rawReq, comment.ID, comment.ID).Scan(&comment.Path)
 	}
 	if err != nil {
 		return fmt.Errorf("ошибка при обновлении path: %v", err)

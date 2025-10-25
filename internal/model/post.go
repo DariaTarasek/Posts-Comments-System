@@ -7,6 +7,6 @@ type Post struct {
 	Title              string    `json:"title" db:"title"`
 	Content            string    `json:"content" db:"content"`
 	Author             string    `json:"author" db:"author"`
-	AreCommentsAllowed bool      `json:"areCommentsAllowed" db:"are_comments_allowed"`
-	CreatedAt          time.Time `json:"createdAt" db:"created_at"`
+	AreCommentsAllowed bool      `json:"are_comments_allowed" db:"are_comments_allowed"`
+	CreatedAt          time.Time `json:"created_at" db:"created_at"`
 }

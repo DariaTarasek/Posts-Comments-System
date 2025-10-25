@@ -1,0 +1,25 @@
+schema:
+  - "internal/graphql/schema.graphqls"
+
+exec:
+  filename: "internal/graphql/generated/generated.go"
+  package: "generated"
+
+model:
+  filename: "internal/graphql/generated/models_gen.go"
+  package: "generated"
+
+resolver:
+  layout: follow-schema
+  dir: "internal/graphql/resolvers"
+  package: "resolvers"
+
+models:
+  ID:
+    model: "github.com/99designs/gqlgen/graphql.ID"
+  Post:
+    model: "OzonTestTask/internal/model.Post"
+  Comment:
+    model: "OzonTestTask/internal/model.Comment"
+  PaginatedComments:
+    model: "OzonTestTask/internal/model.PaginatedComments"

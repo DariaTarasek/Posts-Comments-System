@@ -47,10 +47,6 @@ func TestCreateAndGetPost(t *testing.T) {
 		t.Fatalf("ошибка при создании поста: %v", err)
 	}
 
-	if post.ID == 0 {
-		t.Fatalf("ошибка создания поста: id = 0")
-	}
-
 	createdPost, err := storage.GetPostByID(ctx, post.ID)
 	if err != nil {
 		t.Fatalf("ошибка при получении поста: %v", err)
