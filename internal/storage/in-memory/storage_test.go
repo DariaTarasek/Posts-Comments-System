@@ -145,7 +145,7 @@ func TestGetCommentsByPost(t *testing.T) {
 	if err := store.CreateComment(ctx, comment2); err != nil {
 		t.Fatalf("не получилось создать коммент-ответ: %v", err)
 	}
-	result, err := store.GetCommentsByPost(ctx, post.ID, 5, 0)
+	result, _, err := store.GetCommentsByPost(ctx, post.ID, 5, 0)
 	if err != nil {
 		t.Fatalf("не получилось получить корневые комменты к посту: %v", err)
 	}
@@ -261,7 +261,6 @@ func TestGetRepliesDeepAndBranching(t *testing.T) {
 	ctx := context.Background()
 	store := NewInMemoryStorage()
 
-	// Создаём пост
 	post := &model.Post{
 		Title:              "Жуткий тест",
 		Content:            "Текст",
@@ -322,14 +321,14 @@ func TestGetRepliesDeepAndBranching(t *testing.T) {
 	}
 
 	expectedOrder := []int{
-		c1.ID,      // 1/2
-		c2.ID,      // 1/2/3
-		c3.ID,      // 1/2/3/4
-		c4.ID,      // 1/2/3/4/5
-		c5.ID,      // 1/2/3/4/5/6
-		branch2.ID, // 1/2/3/4/7
-		branch1.ID, // 1/2/8
-		branch3.ID, // 1/9
+		c1.ID,      // 1.2
+		c2.ID,      // 1.2.3
+		c3.ID,      // 1.2.3.4
+		c4.ID,      // 1.2.3.4.5
+		c5.ID,      // 1.2.3.4.5.6
+		branch2.ID, // 1.2.3.4.7
+		branch1.ID, // 1.2.8
+		branch3.ID, // 1.9
 	}
 
 	if len(replies) != len(expectedOrder) {

@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS ltree;
+
 CREATE TABLE IF NOT EXISTS posts (
                                      id SERIAL PRIMARY KEY,
                                      title TEXT NOT NULL,
@@ -13,8 +15,10 @@ CREATE TABLE IF NOT EXISTS comments (
                                         author TEXT NOT NULL,
                                         content TEXT NOT NULL CHECK (length(content) <= 2000),
                                         parent_comment_id INT REFERENCES comments(id) ON DELETE CASCADE,
-                                        path TEXT NOT NULL,
+                                        path ltree NOT NULL,
                                         created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_post_comment_path ON comments(post_id, path);
+CREATE INDEX IF NOT EXISTS idx_comments_path ON comments USING GIST (path);
+CREATE INDEX IF NOT EXISTS idx_post_id ON comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_created_at ON posts(created_at)

@@ -4,6 +4,7 @@ import (
 	"OzonTestTask/internal/model"
 	"OzonTestTask/internal/storage"
 	"context"
+	"fmt"
 )
 
 type PostService struct {
@@ -15,13 +16,26 @@ func NewPostService(s storage.PostStorage) *PostService {
 }
 
 func (s *PostService) CreatePost(ctx context.Context, post *model.Post) error {
-	return s.store.CreatePost(ctx, post)
+	if post.Title == "" {
+		return fmt.Errorf("заголовок поста не может быть пустым")
+	}
+	if post.Content == "" {
+		return fmt.Errorf("пост не может быть пустым")
+	}
+	if post.Author == "" {
+		return fmt.Errorf("имя автора не может быть пустым")
+	}
+	err := s.store.CreatePost(ctx, post)
+	if err != nil {
+		return fmt.Errorf("не удалось создать пост: %v", err)
+	}
+	return nil
 }
 
 func (s *PostService) GetAllPosts(ctx context.Context) ([]model.Post, error) {
-	return s.store.GetAllPosts(ctx)
-}
-
-func (s *PostService) GetPostByID(ctx context.Context, id string) (*model.Post, error) {
-	return s.store.GetPostByID(ctx, id)
+	posts, err := s.store.GetAllPosts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось получить список постов: %v", err)
+	}
+	return posts, nil
 }

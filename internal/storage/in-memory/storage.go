@@ -82,15 +82,9 @@ func (ms *InMemoryStorage) CreateComment(ctx context.Context, comment *model.Com
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
-	post, ok := ms.posts[comment.PostID]
+	_, ok := ms.posts[comment.PostID]
 	if !ok {
 		return fmt.Errorf("пост для добавления комментария не найден")
-	}
-	if !post.AreCommentsAllowed {
-		return fmt.Errorf("к этому посту нельзя оставить комментарий")
-	}
-	if len(comment.Content) > 2000 {
-		return fmt.Errorf("длина комментария не должна превышать 2000 символов")
 	}
 
 	comment.ID = ms.nextCommentID
@@ -102,7 +96,7 @@ func (ms *InMemoryStorage) CreateComment(ctx context.Context, comment *model.Com
 		if !ok {
 			return fmt.Errorf("комментарий для ответа не найден")
 		}
-		comment.Path = parent.Path + "/" + strconv.Itoa(comment.ID)
+		comment.Path = parent.Path + "." + strconv.Itoa(comment.ID)
 	} else {
 		comment.Path = strconv.Itoa(comment.ID)
 	}
@@ -125,10 +119,10 @@ func (ms *InMemoryStorage) GetCommentsByPost(ctx context.Context, postID, limit,
 	defer ms.mu.RUnlock()
 
 	rootIDs := ms.commentsByPost[postID]
-	totalPages := (len(rootIDs) + limit - 1) / limit
+	amount := len(rootIDs)
 
 	if offset >= len(rootIDs) {
-		return []model.Comment{}, totalPages, nil
+		return []model.Comment{}, amount, nil
 	}
 
 	lastComment := offset + limit
@@ -141,7 +135,7 @@ func (ms *InMemoryStorage) GetCommentsByPost(ctx context.Context, postID, limit,
 		result = append(result, ms.comments[id])
 	}
 
-	return result, totalPages, nil
+	return result, amount, nil
 }
 
 // GetReplies Получение ветки ответов на комментарий (все уровни вложенности)
