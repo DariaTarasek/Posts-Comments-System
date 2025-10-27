@@ -88,11 +88,11 @@ func main() {
 	}
 
 	go func() {
+		fmt.Printf("Сервер запущен на %s\n", port)
 		err := httpServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Ошибка запуска сервера: %v", err)
 		}
-		fmt.Printf("Сервер запущен на %s\n", port)
 	}()
 
 	stop := make(chan os.Signal, 1)

@@ -1,6 +1,3 @@
-CREATE DATABASE "posts-comments-test-db";
-
-
 CREATE EXTENSION IF NOT EXISTS ltree;
 
 CREATE TABLE IF NOT EXISTS posts (

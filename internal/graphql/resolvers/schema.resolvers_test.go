@@ -70,18 +70,24 @@ func TestGetPosts(t *testing.T) {
 }
 
 func TestGetPost(t *testing.T) {
+	mockPostService := new(mocks.PostService)
 	mockCommentService := new(mocks.CommentService)
-	r := &Resolver{CommentService: mockCommentService}
+	r := &Resolver{
+		PostService:    mockPostService,
+		CommentService: mockCommentService,
+	}
 	query := &queryResolver{r}
-	mockCommentService.On("GetPostByID", mock.Anything, mock.AnythingOfType("int")).
+
+	mockPostService.On("GetPostByID", mock.Anything, mock.AnythingOfType("int")).
 		Return(&model.Post{ID: 1, Author: "Дарья"}, nil)
 
-	id := "5"
+	id := "1"
 	post, err := query.Post(ctx, id)
 	require.NoError(t, err)
-	require.Equal(t, "Дарья", post.Author)
 	require.Equal(t, 1, post.ID)
-	mockCommentService.AssertExpectations(t)
+	require.Equal(t, "Дарья", post.Author)
+
+	mockPostService.AssertExpectations(t)
 }
 
 func TestGetComments(t *testing.T) {
