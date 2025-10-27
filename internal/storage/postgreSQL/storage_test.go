@@ -19,7 +19,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	const TEST_POSTGRES_DSN = "postgres://postgres:password@localhost:5432/posts-comments-test-db?sslmode=disable"
+	const TEST_POSTGRES_DSN = "postgres://postgres:password@db_test:5432/posts-comments-test-db?sslmode=disable"
 
 	var err error
 	db, err = NewDBConnection(TEST_POSTGRES_DSN)

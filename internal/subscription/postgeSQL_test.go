@@ -8,7 +8,7 @@ import (
 )
 
 func TestDBSubscribeAndPublish(t *testing.T) {
-	connStr := "postgres://postgres:password@localhost:5432/posts-comments-test-db?sslmode=disable"
+	connStr := "postgres://postgres:password@db_test:5432/posts-comments-test-db?sslmode=disable"
 	pool, err := NewPGXPool(connStr)
 	require.NoError(t, err)
 	defer pool.Close()
