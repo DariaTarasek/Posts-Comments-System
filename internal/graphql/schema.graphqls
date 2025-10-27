@@ -6,7 +6,6 @@ type Comment {
   author: String!
   content: String!
   createdAt: String!
-  replies: [Comment!]!
 }
 
 type PaginatedComments {
@@ -34,3 +33,8 @@ type Mutation {
   createPost(title: String!, content: String!, author: String!, areCommentsAllowed: Boolean!): Post!
   createComment(postId: ID!, parentId: ID, author: String!, content: String!): Comment!
 }
+
+type Subscription {
+  newComment(postID: Int!): Comment!
+}
+

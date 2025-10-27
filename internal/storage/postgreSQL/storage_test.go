@@ -6,13 +6,17 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"log"
 	"os"
 	"testing"
 )
 
-var storage *Storage
-var db *sqlx.DB
+var (
+	storage *Storage
+	db      *sqlx.DB
+	ctx     context.Context
+)
 
 func TestMain(m *testing.M) {
 	const TEST_POSTGRES_DSN = "postgres://postgres:password@localhost:5432/posts-comments-test-db?sslmode=disable"
@@ -20,276 +24,228 @@ func TestMain(m *testing.M) {
 	var err error
 	db, err = NewDBConnection(TEST_POSTGRES_DSN)
 	if err != nil {
-		log.Fatalf("не удалось подключиться к БД: %v", err)
+		log.Fatalf("не удалось подключиться к тестовой БД: %v", err)
 	}
-	fmt.Println("Подключено тестовое хранилище")
 	storage = NewStorage(db)
-	db.Exec("TRUNCATE TABLE comments CASCADE")
-	db.Exec("TRUNCATE TABLE posts CASCADE")
+	ctx = context.Background()
+
+	_, _ = db.Exec("TRUNCATE TABLE comments CASCADE")
+	_, _ = db.Exec("TRUNCATE TABLE posts CASCADE")
+
 	code := m.Run()
 	defer db.Close()
-
 	os.Exit(code)
 }
 
 func TestCreateAndGetPost(t *testing.T) {
-	ctx := context.Background()
-
 	post := &model.Post{
-		Title:              "Тестовый пост 1",
-		Content:            "Содержимое поста",
+		Title:              "Тестовый пост",
+		Content:            "Содержимое",
 		Author:             "Даша",
 		AreCommentsAllowed: true,
 	}
 
-	err := storage.CreatePost(ctx, post)
-	if err != nil {
-		t.Fatalf("ошибка при создании поста: %v", err)
-	}
+	require.NoError(t, storage.CreatePost(ctx, post), "пост не создан")
 
-	createdPost, err := storage.GetPostByID(ctx, post.ID)
-	if err != nil {
-		t.Fatalf("ошибка при получении поста: %v", err)
-	}
-	assert.Equal(t, post.Title, createdPost.Title)
+	created, err := storage.GetPostByID(ctx, post.ID)
+	require.NoError(t, err, "пост не найден")
+	assert.Equal(t, post.Title, created.Title)
+	assert.Equal(t, post.Author, created.Author)
 }
 
 func TestGetAllPosts(t *testing.T) {
-	ctx := context.Background()
-
-	post1 := &model.Post{
-		Title:   "Пост 2",
+	post := &model.Post{
+		Title:   "Пост",
 		Content: "Текст",
 		Author:  "Дарья",
 	}
-
-	err := storage.CreatePost(ctx, post1)
-	if err != nil {
-		t.Errorf(" не удалось создать пост: %v", err)
-	}
+	require.NoError(t, storage.CreatePost(ctx, post), "пост не создан")
 	posts, err := storage.GetAllPosts(ctx)
-	if err != nil {
-		t.Fatalf("ошибка при получении всех постов: %v", err)
-	}
-	expectedMinLen := 1
-	if expectedMinLen > len(posts) {
-		t.Errorf("ожидался минимум 1 пост, получено 0")
-	}
+	require.NoError(t, err, "не удалось получить посты")
+	assert.NotEmpty(t, posts, "должен быть хотя бы один пост")
 }
 
-func TestCreateCommentsAndGetComments(t *testing.T) {
-	ctx := context.Background()
-
+func TestCreateAndGetComments(t *testing.T) {
 	post := &model.Post{
-		Title:              "Пост для комментов",
-		Content:            "Текст поста",
+		Title:              "Пост с комментами",
+		Content:            "Текст",
 		Author:             "Василий",
 		AreCommentsAllowed: true,
 	}
-	err := storage.CreatePost(ctx, post)
-	if err != nil {
-		t.Errorf("не удалось создать пост: %v", err)
-	}
+	require.NoError(t, storage.CreatePost(ctx, post), "пост не создан")
 
-	comment1 := &model.Comment{
+	root := &model.Comment{
 		PostID:  post.ID,
 		Author:  "Анна",
-		Content: "Корневой комментарий",
+		Content: "Корневой",
 	}
-	err = storage.CreateComment(ctx, comment1)
-	if err != nil {
-		t.Fatalf("ошибка при создании комментария: %v", err)
-	}
+	require.NoError(t, storage.CreateComment(ctx, root), "комментарий не создан")
 
-	comment2 := &model.Comment{
+	reply := &model.Comment{
 		PostID:          post.ID,
+		ParentCommentID: &root.ID,
 		Author:          "Олег",
-		Content:         "Ответ на первый коммент",
-		ParentCommentID: &comment1.ID,
+		Content:         "Ответ",
 	}
-	err = storage.CreateComment(ctx, comment2)
-	if err != nil {
-		t.Fatalf("ошибка при создании вложенного комментария: %v", err)
-	}
+	require.NoError(t, storage.CreateComment(ctx, reply), "комментарий не создан")
 
 	rootComments, total, err := storage.GetCommentsByPost(ctx, post.ID, 10, 0)
-	if err != nil {
-		t.Fatalf("ошибка при получении корневых комментариев: %v", err)
-	}
-	if total != 1 {
-		t.Errorf("ожидался 1 корневой комментарий, получено %d", total)
-	}
-	if rootComments[0].ID != comment1.ID {
-		t.Errorf("ожидалось ID=%d, получено ID=%d", comment1.ID, rootComments[0].ID)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Equal(t, root.ID, rootComments[0].ID)
 
-	replies, err := storage.GetReplies(ctx, comment1.ID)
-	if err != nil {
-		t.Fatalf("ошибка при получении вложенных комментариев: %v", err)
+	replies, err := storage.GetReplies(ctx, root.ID)
+	require.NoError(t, err)
+	assert.Len(t, replies, 1)
+	assert.Equal(t, reply.ID, replies[0].ID)
+}
+
+func TestGetPostByID_WrongID(t *testing.T) {
+	post, err := storage.GetPostByID(ctx, -1)
+	assert.Error(t, err)
+	assert.Nil(t, post)
+}
+
+func TestCreateComment_WrongPostID(t *testing.T) {
+	comment := &model.Comment{
+		PostID:  -1,
+		Author:  "Тест",
+		Content: "Невалидный пост",
 	}
-	if len(replies) != 1 {
-		t.Errorf("ожидался 1 вложенный комментарий, получено %d", len(replies))
-	}
-	if replies[0].ID != comment2.ID {
-		t.Errorf("ожидалось ID=%d,получено ID=%d", comment2.ID, replies[0].ID)
-	}
+	err := storage.CreateComment(ctx, comment)
+	assert.Error(t, err)
 }
 
 func TestGetRepliesDeep(t *testing.T) {
-	ctx := context.Background()
-
 	post := &model.Post{
-		Title:              "Постик",
+		Title:              "Пост",
 		Content:            "Текст",
 		AreCommentsAllowed: true,
 	}
-	if err := storage.CreatePost(ctx, post); err != nil {
-		t.Fatalf("не удалось создать пост: %v", err)
-	}
+	require.NoError(t, storage.CreatePost(ctx, post), "пост не создан")
 
 	parentID := 0
-	var expectedOrder []int
-	for i := 1; i <= 6; i++ {
-		comment := &model.Comment{
-			PostID: post.ID,
-		}
+	var expectedIDs []int
+	for i := 1; i <= 5; i++ {
+		c := &model.Comment{PostID: post.ID}
 		if parentID != 0 {
-			comment.ParentCommentID = &parentID
+			c.ParentCommentID = &parentID
 		}
-		if err := storage.CreateComment(ctx, comment); err != nil {
-			t.Fatalf("не удалось создать коммент глубины %d: %v", i, err)
-		}
-		parentID = comment.ID
-		expectedOrder = append(expectedOrder, comment.ID)
+		require.NoError(t, storage.CreateComment(ctx, c), "комментарий не создан")
+		parentID = c.ID
+		expectedIDs = append(expectedIDs, c.ID)
 	}
 
-	replies, err := storage.GetReplies(ctx, expectedOrder[0])
-	if err != nil {
-		t.Fatalf("не удалось получить вложенные комменты: %v", err)
-	}
-
-	if len(replies) != len(expectedOrder)-1 {
-		t.Fatalf("ожидались %d комм., получено %d", len(expectedOrder)-1, len(replies))
-	}
+	replies, err := storage.GetReplies(ctx, expectedIDs[0])
+	require.NoError(t, err)
+	assert.Len(t, replies, len(expectedIDs)-1)
 
 	for i, reply := range replies {
-		if reply.ID != expectedOrder[i+1] {
-			t.Errorf("на позиции %d: ожидалось ID %d, получено %d", i, expectedOrder[i+1], reply.ID)
-		}
+		assert.Equal(t, expectedIDs[i+1], reply.ID)
 	}
 }
 
-func TestGetRepliesDeepAndBranching_Postgres(t *testing.T) {
-	ctx := context.Background()
-
+func TestPagination(t *testing.T) {
 	post := &model.Post{
-		Title:              "Жуткий тест",
+		Title:              "Пост для пагинации",
+		Content:            "Контент",
+		AreCommentsAllowed: true,
+	}
+	require.NoError(t, storage.CreatePost(ctx, post), "пост не создан")
+
+	for i := 1; i <= 5; i++ {
+		c := &model.Comment{
+			PostID:  post.ID,
+			Content: fmt.Sprintf("Коммент %d", i),
+		}
+		require.NoError(t, storage.CreateComment(ctx, c), "комментарий не создан")
+	}
+
+	limit, offset := 2, 1
+	comments, total, err := storage.GetCommentsByPost(ctx, post.ID, limit, offset)
+	require.NoError(t, err)
+	assert.Equal(t, 5, total)
+	assert.Len(t, comments, limit)
+}
+
+func TestGetRepliesDeepAndBranching(t *testing.T) {
+	post := &model.Post{
+		Title:              "Комменты с ветвлениями",
 		Content:            "Текст",
 		AreCommentsAllowed: true,
 	}
-	if err := storage.CreatePost(ctx, post); err != nil {
-		t.Fatalf("не удалось создать пост: %v", err)
+	require.NoError(t, storage.CreatePost(ctx, post), "пост не создан")
+
+	// корневой коммент
+	root := &model.Comment{
+		PostID: post.ID,
+	}
+	require.NoError(t, storage.CreateComment(ctx, root))
+
+	// ветка ответов на корень
+	c1 := &model.Comment{ // 1.2
+		PostID:          post.ID,
+		ParentCommentID: &root.ID,
+	}
+	c2 := &model.Comment{ // 1.2.3
+		PostID:          post.ID,
+		ParentCommentID: &c1.ID,
+	}
+	c3 := &model.Comment{ // 1.2.3.4
+		PostID:          post.ID,
+		ParentCommentID: &c2.ID,
 	}
 
-	root := &model.Comment{PostID: post.ID}
-	if err := storage.CreateComment(ctx, root); err != nil {
-		t.Fatalf("не удалось создать корневой коммент: %v", err)
+	c4 := &model.Comment{ // 1.2.3.4.5
+		PostID:          post.ID,
+		ParentCommentID: &c3.ID,
 	}
 
-	c1 := &model.Comment{PostID: post.ID, ParentCommentID: &root.ID}
-	storage.CreateComment(ctx, c1)
+	c5 := &model.Comment{ // 1.2.3.4.5.6
+		PostID:          post.ID,
+		ParentCommentID: &c4.ID,
+	}
 
-	c2 := &model.Comment{PostID: post.ID, ParentCommentID: &c1.ID}
-	storage.CreateComment(ctx, c2)
+	for _, c := range []*model.Comment{c1, c2, c3, c4, c5} {
+		require.NoError(t, storage.CreateComment(ctx, c), "комментарий не создан")
+	}
 
-	c3 := &model.Comment{PostID: post.ID, ParentCommentID: &c2.ID}
-	storage.CreateComment(ctx, c3)
+	// ветвления
+	branch1 := &model.Comment{PostID: post.ID, ParentCommentID: &c1.ID}   // 1.2.7
+	branch2 := &model.Comment{PostID: post.ID, ParentCommentID: &c3.ID}   // 1.2.3.4.8
+	branch3 := &model.Comment{PostID: post.ID, ParentCommentID: &root.ID} // 1.9
 
-	c4 := &model.Comment{PostID: post.ID, ParentCommentID: &c3.ID}
-	storage.CreateComment(ctx, c4)
-
-	c5 := &model.Comment{PostID: post.ID, ParentCommentID: &c4.ID}
-	storage.CreateComment(ctx, c5)
-
-	branch1 := &model.Comment{PostID: post.ID, ParentCommentID: &c1.ID}
-	storage.CreateComment(ctx, branch1)
-
-	branch2 := &model.Comment{PostID: post.ID, ParentCommentID: &c3.ID}
-	storage.CreateComment(ctx, branch2)
-
-	branch3 := &model.Comment{PostID: post.ID, ParentCommentID: &root.ID}
-	storage.CreateComment(ctx, branch3)
+	for _, b := range []*model.Comment{branch1, branch2, branch3} {
+		require.NoError(t, storage.CreateComment(ctx, b), "комментарий не создан")
+	}
 
 	replies, err := storage.GetReplies(ctx, root.ID)
-	if err != nil {
-		t.Fatalf("не удалось получить вложенные комментарии: %v", err)
-	}
+	require.NoError(t, err, "ошибка при получении вложенных комментариев")
 
+	expectedCount := 8
+	assert.Len(t, replies, expectedCount, "неверное количество комментариев")
 	expectedOrder := []int{
-		c1.ID,
-		c2.ID,
-		c3.ID,
-		c4.ID,
-		c5.ID,
-		branch2.ID,
-		branch1.ID,
-		branch3.ID,
+		c1.ID, c2.ID, c3.ID, c4.ID, c5.ID, branch2.ID, branch1.ID, branch3.ID,
 	}
-
-	if len(replies) != len(expectedOrder) {
-		t.Fatalf("ожидалось %d комм., получено %d", len(expectedOrder), len(replies))
-	}
+	// логика такая: сначала выводим всю ветку ответов на 1, т.е.
+	// 1, 1.2, 1.3, ... , 1.6
+	// после как бы на одном уровне начинаем выводить ответы на ответы, т. е.
+	// визуально 1.2.3.4.5 должен быть на одном уровне с 1.2.3.4.8
+	// под 1.2 должен быть 1.9 (но не физически ПРЯМО под ним, т.к. сначала идет вся ветка ответов,
+	// а как бы на том же визуальном уровне вложенности)
+	// понятнее будет, если нарисую на листочке, но вот схематично:
+	// 1
+	//  | 2
+	//  |  | 3
+	//  |  |  | 4
+	//  |  |    | 5
+	//  |  |    |  | 6
+	//  |  |    | 8
+	//  |  | 7
+	//  | 9
 
 	for i, reply := range replies {
-		if reply.ID != expectedOrder[i] {
-			t.Errorf("на позиции %d: ожидалось ID %d, получено %d", i, expectedOrder[i], reply.ID)
-		}
-	}
-}
-
-func TestGetCommentsByPostPagination(t *testing.T) {
-	ctx := context.Background()
-
-	post := &model.Post{
-		Title:              "Тест пагинации",
-		Content:            "Какой-то текст",
-		AreCommentsAllowed: true,
-	}
-	if err := storage.CreatePost(ctx, post); err != nil {
-		t.Fatalf("не удалось создать пост: %v", err)
-	}
-
-	var rootComments []*model.Comment
-	for i := 1; i <= 5; i++ {
-		comment := &model.Comment{
-			PostID:  post.ID,
-			Content: "Комментарий номер " + fmt.Sprint(i),
-		}
-		if err := storage.CreateComment(ctx, comment); err != nil {
-			t.Fatalf("не удалось создать корневой комментарий %d: %v", i, err)
-		}
-		rootComments = append(rootComments, comment)
-	}
-
-	offset := 1
-	limit := 2
-
-	comments, total, err := storage.GetCommentsByPost(ctx, post.ID, limit, offset)
-	if err != nil {
-		t.Fatalf("ошибка при получении корневых комментариев: %v", err)
-	}
-
-	if total != 5 {
-		t.Errorf("ожидалось всего 5 корневых комментов, получено %d", total)
-	}
-
-	if len(comments) != 2 {
-		t.Errorf("ожидалось получить %d комментария, получено %d", limit, len(comments))
-	}
-
-	for i, c := range comments {
-		if c.ID != rootComments[i+offset].ID {
-			t.Errorf("на позиции %d: ожидалось ID %d, получено %d", i, rootComments[i].ID, c.ID)
-		}
+		assert.Equal(t, expectedOrder[i], reply.ID,
+			"неверный порядок комментариев на позиции %d", i)
 	}
 }

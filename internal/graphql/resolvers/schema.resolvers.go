@@ -37,20 +37,6 @@ func (r *commentResolver) CreatedAt(ctx context.Context, obj *model.Comment) (st
 	return obj.CreatedAt.Format(time.RFC3339), nil
 }
 
-// Replies is the resolver for the replies field.
-func (r *commentResolver) Replies(ctx context.Context, obj *model.Comment) ([]*model.Comment, error) {
-	replies, err := r.CommentService.GetReplies(ctx, obj.ID)
-	if err != nil {
-		return nil, fmt.Errorf("не удалось получить ответы на комментарий: %v", err)
-	}
-
-	result := make([]*model.Comment, len(replies))
-	for i := range replies {
-		result[i] = &replies[i]
-	}
-	return result, nil
-}
-
 // CreatePost is the resolver for the createPost field.
 func (r *mutationResolver) CreatePost(ctx context.Context, title string, content string, author string, areCommentsAllowed bool) (*model.Post, error) {
 	post := &model.Post{
@@ -149,7 +135,7 @@ func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error
 	if err != nil {
 		return nil, fmt.Errorf("не удалось преобразовать id поста в int: %v", err)
 	}
-	post, err := r.CommentService.GetPostByID(ctx, idInt)
+	post, err := r.PostService.GetPostByID(ctx, idInt)
 	if err != nil {
 		return nil, fmt.Errorf("не удалось получить пост: %v", err)
 	}
@@ -174,6 +160,12 @@ func (r *queryResolver) Replies(ctx context.Context, id string) ([]*model.Commen
 	return result, nil
 }
 
+// NewComment is the resolver for the newComment field.
+func (r *subscriptionResolver) NewComment(ctx context.Context, postID int) (<-chan *model.Comment, error) {
+	ch := r.SubscriptionService.Subscribe(postID)
+	return ch, nil
+}
+
 // Comment returns generated.CommentResolver implementation.
 func (r *Resolver) Comment() generated.CommentResolver { return &commentResolver{r} }
 
@@ -186,7 +178,32 @@ func (r *Resolver) Post() generated.PostResolver { return &postResolver{r} }
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// Subscription returns generated.SubscriptionResolver implementation.
+func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
+
 type commentResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type postResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *commentResolver) Replies(ctx context.Context, obj *model.Comment) ([]*model.Comment, error) {
+	replies, err := r.CommentService.GetReplies(ctx, obj.ID)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось получить ответы на комментарий: %v", err)
+	}
+
+	result := make([]*model.Comment, len(replies))
+	for i := range replies {
+		result[i] = &replies[i]
+	}
+	return result, nil
+}
+*/

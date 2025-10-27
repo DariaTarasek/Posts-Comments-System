@@ -39,3 +39,11 @@ func (s *PostService) GetAllPosts(ctx context.Context) ([]model.Post, error) {
 	}
 	return posts, nil
 }
+
+func (s *PostService) GetPostByID(ctx context.Context, id int) (*model.Post, error) {
+	post, err := s.store.GetPostByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось получить пост: %v", err)
+	}
+	return post, nil
+}

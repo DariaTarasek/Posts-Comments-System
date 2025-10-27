@@ -3,16 +3,21 @@ package comment
 import (
 	"OzonTestTask/internal/model"
 	"OzonTestTask/internal/storage"
+	"OzonTestTask/internal/subscription"
 	"context"
 	"fmt"
 )
 
 type CommentService struct {
 	store storage.CommentStorage
+	sub   subscription.Subscription
 }
 
-func NewCommentService(s storage.CommentStorage) *CommentService {
-	return &CommentService{store: s}
+func NewCommentService(store storage.CommentStorage, sub subscription.Subscription) *CommentService {
+	return &CommentService{
+		store: store,
+		sub:   sub,
+	}
 }
 
 func (s *CommentService) GetPostByID(ctx context.Context, id int) (*model.Post, error) {
@@ -30,7 +35,14 @@ func (s *CommentService) CreateComment(ctx context.Context, comment *model.Comme
 	}
 
 	if !post.AreCommentsAllowed {
-		return fmt.Errorf("этого пост запрещено комментировать")
+		return fmt.Errorf("этот пост запрещено комментировать")
+	}
+
+	if comment.Content == "" {
+		return fmt.Errorf("комментарий не может быть пустым")
+	}
+	if comment.Author == "" {
+		return fmt.Errorf("имя автора не может быть пустым")
 	}
 
 	if len(comment.Content) > 2000 {
@@ -40,6 +52,13 @@ func (s *CommentService) CreateComment(ctx context.Context, comment *model.Comme
 	err = s.store.CreateComment(ctx, comment)
 	if err != nil {
 		return fmt.Errorf("не удалось создать комментарий: %v", err)
+	}
+
+	if s.sub != nil {
+		err = s.sub.Publish(comment.PostID, comment)
+		if err != nil {
+			return fmt.Errorf("не удалось отправить уведомление о новом комментарии: %v", err)
+		}
 	}
 
 	return nil
