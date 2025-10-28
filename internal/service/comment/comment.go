@@ -45,7 +45,7 @@ func (s *CommentService) CreateComment(ctx context.Context, comment *model.Comme
 		return fmt.Errorf("имя автора не может быть пустым")
 	}
 
-	if len(comment.Content) > 2000 {
+	if len([]rune(comment.Content)) > 2000 {
 		return fmt.Errorf("длина комментария не должна превышать 2000 символов")
 	}
 

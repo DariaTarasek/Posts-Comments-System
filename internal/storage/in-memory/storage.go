@@ -149,7 +149,6 @@ func (ms *InMemoryStorage) GetReplies(ctx context.Context, parentID int) ([]mode
 
 	// результат отдаю плоским, пускай строит клиент,
 	// чтобы не перегружать сервер при большом количестве комментов.
-	// не уверена, что это правильный ход
 	var result []model.Comment
 	stack := []int{}
 
